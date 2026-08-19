@@ -119,6 +119,54 @@ export function SummaryStep({
       0,
     )
 
+  const spendingBreakdown = useMemo(() => {
+    return orderItems.reduce(
+      (totals, item) => {
+        const name =
+          item.name.toLowerCase()
+
+        const location =
+          item.location
+            .trim()
+            .toLowerCase()
+
+        /*
+         * Classification priority:
+         *
+         * 1. Packaging
+         *    Anything with "paper" in the item name.
+         *
+         * 2. Operating Expenses
+         *    Anything located in Chemicals or Smallwares.
+         *
+         * 3. Food
+         *    Everything else.
+         */
+
+        if (name.includes("paper")) {
+          totals.packaging +=
+            item.lineTotal
+        } else if (
+          location === "chemicals" ||
+          location === "smallwares"
+        ) {
+          totals.operatingExpenses +=
+            item.lineTotal
+        } else {
+          totals.food +=
+            item.lineTotal
+        }
+
+        return totals
+      },
+      {
+        food: 0,
+        operatingExpenses: 0,
+        packaging: 0,
+      },
+    )
+  }, [orderItems])
+
   const visibleItems = useMemo(() => {
     const base = showAllItems
       ? allItems
@@ -161,7 +209,7 @@ export function SummaryStep({
     <div className="space-y-4">
       {/* Summary header */}
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
               <ClipboardList
@@ -185,16 +233,59 @@ export function SummaryStep({
             </div>
           </div>
 
-          <div className="sm:text-right">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Estimated Order Total
-            </p>
+          {/* Spending breakdown */}
+          <div className="w-full sm:w-[290px]">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-muted-foreground">
+                  Food
+                </span>
 
-            <p className="text-2xl font-bold text-primary tabular-nums">
-              {formatCurrency(
-                estimatedOrderTotal,
-              )}
-            </p>
+                <span className="font-semibold text-card-foreground tabular-nums">
+                  {formatCurrency(
+                    spendingBreakdown.food,
+                  )}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-muted-foreground">
+                  Operating Expenses
+                </span>
+
+                <span className="font-semibold text-card-foreground tabular-nums">
+                  {formatCurrency(
+                    spendingBreakdown.operatingExpenses,
+                  )}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-muted-foreground">
+                  Packaging
+                </span>
+
+                <span className="font-semibold text-card-foreground tabular-nums">
+                  {formatCurrency(
+                    spendingBreakdown.packaging,
+                  )}
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-3 border-t border-border pt-3">
+              <div className="flex items-end justify-between gap-4">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Total Order Cost
+                </span>
+
+                <span className="text-2xl font-bold text-primary tabular-nums">
+                  {formatCurrency(
+                    estimatedOrderTotal,
+                  )}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -285,7 +376,6 @@ export function SummaryStep({
                     className="border-b border-border p-4 last:border-b-0"
                   >
                     <div className="flex items-start gap-3">
-                      {/* Item info */}
                       <div className="min-w-0 flex-1">
                         <p className="whitespace-normal break-words text-base font-semibold leading-snug text-card-foreground">
                           {item.preferredName ||
@@ -293,15 +383,12 @@ export function SummaryStep({
                         </p>
 
                         <p className="mt-1 font-mono text-sm font-semibold tracking-wide text-muted-foreground tabular-nums">
-                          {
-                            formatMcLaneNumber(
-                              item.vendorItemNumber,
-                            )
-                          }
+                          {formatMcLaneNumber(
+                            item.vendorItemNumber,
+                          )}
                         </p>
                       </div>
 
-                      {/* Quantity */}
                       <div className="shrink-0">
                         <div className="flex items-center overflow-hidden rounded-lg border border-border bg-background">
                           <button
@@ -351,7 +438,6 @@ export function SummaryStep({
                       </div>
                     </div>
 
-                    {/* Secondary info */}
                     <div className="mt-3 flex items-end justify-between gap-3">
                       <div>
                         {item.adjustment !==
