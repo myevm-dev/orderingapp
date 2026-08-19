@@ -34,6 +34,10 @@ function formatCurrency(value: number) {
   }).format(value)
 }
 
+function formatMcLaneNumber(value: number | string) {
+  return String(value).padStart(6, "0")
+}
+
 export function SummaryStep({
   guestCount,
   onHand,
@@ -62,7 +66,9 @@ export function SummaryStep({
             computed.toOrder + adjustment,
           )
 
-          const price = Number(item.price ?? 0)
+          const price = Number(
+            item.price ?? 0,
+          )
 
           const lineTotal =
             finalToOrder * price
@@ -77,9 +83,15 @@ export function SummaryStep({
         })
         .sort(
           (a, b) =>
-            a.location.localeCompare(b.location) ||
-            a.type.localeCompare(b.type) ||
-            a.name.localeCompare(b.name),
+            a.location.localeCompare(
+              b.location,
+            ) ||
+            a.type.localeCompare(
+              b.type,
+            ) ||
+            a.name.localeCompare(
+              b.name,
+            ),
         ),
     [
       guestCount,
@@ -89,14 +101,16 @@ export function SummaryStep({
   )
 
   const orderItems = allItems.filter(
-    (item) => item.finalToOrder > 0,
+    (item) =>
+      item.finalToOrder > 0,
   )
 
-  const totalUnits = orderItems.reduce(
-    (sum, item) =>
-      sum + item.finalToOrder,
-    0,
-  )
+  const totalUnits =
+    orderItems.reduce(
+      (sum, item) =>
+        sum + item.finalToOrder,
+      0,
+    )
 
   const estimatedOrderTotal =
     orderItems.reduce(
@@ -114,13 +128,18 @@ export function SummaryStep({
       .trim()
       .toLowerCase()
 
-    if (!query) return base
+    if (!query) {
+      return base
+    }
 
     return base.filter((item) =>
       [
         item.name,
         item.preferredName,
         String(
+          item.vendorItemNumber,
+        ),
+        formatMcLaneNumber(
           item.vendorItemNumber,
         ),
         item.casePack,
@@ -140,10 +159,11 @@ export function SummaryStep({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+      {/* Summary header */}
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-accent-foreground">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground">
               <ClipboardList
                 className="h-6 w-6"
                 aria-hidden="true"
@@ -160,7 +180,7 @@ export function SummaryStep({
                 guests ·{" "}
                 {orderItems.length} items ·{" "}
                 {totalUnits.toLocaleString()}{" "}
-                cases to order
+                cases
               </p>
             </div>
           </div>
@@ -179,6 +199,7 @@ export function SummaryStep({
         </div>
       </div>
 
+      {/* Search */}
       <div className="rounded-xl border border-border bg-card p-3 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <label className="relative flex-1">
@@ -199,8 +220,8 @@ export function SummaryStep({
                   event.target.value,
                 )
               }
-              placeholder="Search item name or item number"
-              className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground outline-none ring-ring/40 transition focus:border-ring focus:ring-2"
+              placeholder="Search item name or McLane number"
+              className="w-full rounded-lg border border-input bg-background py-2.5 pl-9 pr-3 text-base text-foreground outline-none ring-ring/40 transition placeholder:text-muted-foreground focus:border-ring focus:ring-2 sm:text-sm"
             />
           </label>
 
@@ -212,7 +233,7 @@ export function SummaryStep({
                 (value) => !value,
               )
             }
-            className="sm:shrink-0"
+            className="w-full sm:w-auto sm:shrink-0"
           >
             {showAllItems
               ? `Show order only (${orderItems.length})`
@@ -222,10 +243,7 @@ export function SummaryStep({
 
         <p className="mt-2 text-xs text-muted-foreground">
           Use + or - to change the
-          final order quantity. Show
-          all items to manually add
-          something with a calculated
-          order of 0.
+          final order quantity.
         </p>
       </div>
 
@@ -244,21 +262,185 @@ export function SummaryStep({
 
           <p className="text-sm text-muted-foreground">
             {search
-              ? "Try another item name or item number."
+              ? "Try another item name or McLane number."
               : "You have enough on hand to cover the calculated par. You can still show all items and add one manually."}
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px] text-left text-sm">
+        <>
+          {/* MOBILE */}
+          <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:hidden">
+            <div className="border-b border-border bg-muted/50 px-4 py-2">
+              <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <span>Item</span>
+                <span>Order</span>
+              </div>
+            </div>
+
+            <div>
+              {visibleItems.map(
+                (item) => (
+                  <div
+                    key={item.id}
+                    className="border-b border-border p-4 last:border-b-0"
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Item info */}
+                      <div className="min-w-0 flex-1">
+                        <p className="whitespace-normal break-words text-base font-semibold leading-snug text-card-foreground">
+                          {item.preferredName ||
+                            item.name}
+                        </p>
+
+                        <p className="mt-1 font-mono text-sm font-semibold tracking-wide text-muted-foreground tabular-nums">
+                          {
+                            formatMcLaneNumber(
+                              item.vendorItemNumber,
+                            )
+                          }
+                        </p>
+                      </div>
+
+                      {/* Quantity */}
+                      <div className="shrink-0">
+                        <div className="flex items-center overflow-hidden rounded-lg border border-border bg-background">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onAdjustOrder(
+                                item.id,
+                                -1,
+                              )
+                            }
+                            disabled={
+                              item.finalToOrder <=
+                              0
+                            }
+                            className="flex h-11 w-10 items-center justify-center text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                            aria-label={`Decrease ${item.name} order`}
+                          >
+                            <Minus
+                              className="h-4 w-4"
+                              aria-hidden="true"
+                            />
+                          </button>
+
+                          <span className="flex h-11 min-w-11 items-center justify-center bg-primary/10 px-2 text-center text-lg font-bold text-primary tabular-nums">
+                            {
+                              item.finalToOrder
+                            }
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onAdjustOrder(
+                                item.id,
+                                1,
+                              )
+                            }
+                            className="flex h-11 w-10 items-center justify-center text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            aria-label={`Increase ${item.name} order`}
+                          >
+                            <Plus
+                              className="h-4 w-4"
+                              aria-hidden="true"
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Secondary info */}
+                    <div className="mt-3 flex items-end justify-between gap-3">
+                      <div>
+                        {item.adjustment !==
+                          0 && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <span>
+                              {item.adjustment >
+                              0
+                                ? "+"
+                                : ""}
+                              {
+                                item.adjustment
+                              }{" "}
+                              manual
+                            </span>
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onResetOrderAdjustment(
+                                  item.id,
+                                )
+                              }
+                              className="inline-flex h-6 w-6 items-center justify-center rounded-md transition hover:bg-muted hover:text-foreground"
+                              aria-label={`Reset ${item.name} to calculated order`}
+                              title="Reset to calculated order"
+                            >
+                              <RotateCcw className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {item.price > 0 && (
+                        <div className="text-right">
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Total
+                          </p>
+
+                          <p className="font-semibold text-card-foreground tabular-nums">
+                            {formatCurrency(
+                              item.lineTotal,
+                            )}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ),
+              )}
+            </div>
+
+            <div className="border-t-2 border-border bg-muted/40 p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Cases
+                  </p>
+
+                  <p className="font-semibold text-card-foreground tabular-nums">
+                    {totalUnits.toLocaleString()}
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Estimated Total
+                  </p>
+
+                  <p className="text-xl font-bold text-primary tabular-nums">
+                    {formatCurrency(
+                      estimatedOrderTotal,
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* DESKTOP */}
+          <div className="hidden overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:block">
+            <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
                   <th
                     scope="col"
-                    className="hidden px-4 py-3 font-semibold sm:table-cell"
+                    className="px-4 py-3 font-semibold"
                   >
-                    Item #
+                    McLane #
                   </th>
 
                   <th
@@ -266,13 +448,6 @@ export function SummaryStep({
                     className="px-4 py-3 font-semibold"
                   >
                     Item
-                  </th>
-
-                  <th
-                    scope="col"
-                    className="px-4 py-3 text-right font-semibold"
-                  >
-                    Case Price
                   </th>
 
                   <th
@@ -298,10 +473,10 @@ export function SummaryStep({
                       key={item.id}
                       className="border-b border-border last:border-b-0"
                     >
-                      <td className="hidden px-4 py-3 align-top font-mono text-muted-foreground tabular-nums sm:table-cell">
-                        {
-                          item.vendorItemNumber
-                        }
+                      <td className="px-4 py-3 align-top font-mono font-semibold text-muted-foreground tabular-nums">
+                        {formatMcLaneNumber(
+                          item.vendorItemNumber,
+                        )}
                       </td>
 
                       <td className="px-4 py-3 align-top">
@@ -309,21 +484,6 @@ export function SummaryStep({
                           {item.preferredName ||
                             item.name}
                         </p>
-
-                        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground sm:hidden">
-                          #
-                          {
-                            item.vendorItemNumber
-                          }
-                        </p>
-
-                        {item.preferredName &&
-                          item.name !==
-                            item.preferredName && (
-                            <p className="mt-0.5 whitespace-normal break-words text-xs text-muted-foreground">
-                              {item.name}
-                            </p>
-                          )}
 
                         <p className="mt-1 whitespace-normal break-words text-xs text-muted-foreground">
                           {[
@@ -340,17 +500,11 @@ export function SummaryStep({
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {item.usagePerGuest >
                           0
-                            ? `Calculated ${item.toOrder} · Par ${item.par.toFixed(2)}`
-                            : "No usage-per-guest model · Manual order available"}
+                            ? `Calculated ${item.toOrder} · Par ${item.par.toFixed(
+                                2,
+                              )}`
+                            : "Manual order item"}
                         </p>
-                      </td>
-
-                      <td className="px-4 py-3 text-right align-top font-medium tabular-nums">
-                        {item.price > 0
-                          ? formatCurrency(
-                              item.price,
-                            )
-                          : "—"}
                       </td>
 
                       <td className="px-4 py-3 align-top">
@@ -448,7 +602,7 @@ export function SummaryStep({
               <tfoot>
                 <tr className="border-t-2 border-border bg-muted/40">
                   <td
-                    colSpan={3}
+                    colSpan={2}
                     className="px-4 py-4 text-right text-sm font-semibold text-card-foreground"
                   >
                     Estimated Order Total
@@ -468,7 +622,7 @@ export function SummaryStep({
               </tfoot>
             </table>
           </div>
-        </div>
+        </>
       )}
     </div>
   )
