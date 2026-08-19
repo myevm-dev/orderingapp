@@ -260,5 +260,5 @@ export const inventoryItems: InventoryItem[] = [
   { name: "GROC PECANS HONEY RSTD - 2041", vendorItemNumber: 211716, preferredName: "HONEY PECANS", usagePerGuest: 0, location: "Freezer", type: "Other", casePack: "Case - 10 LB", price: 97.87 },
   { name: "DESS PECAN PIE SAUCE - 4380", vendorItemNumber: 211164, preferredName: "PECAN PIE SAUCE", usagePerGuest: 0, location: "Freezer", type: "Dessert", casePack: "Case - 28 LB", price: 111.15 },
   { name: "COND SMOKY GLAZE - 1222", vendorItemNumber: 212235, preferredName: "sMOKY GLAZE", usagePerGuest: 0, location: "Dry Storage", type: "condiments", casePack: "Case - 18/Pack (24 oz-wt)", price: 94.16 },
-  { name: "COND CARAMEL APPLE SYRUP - 3771", vendorItemNumber: 212241, preferredName: "CARAMEL APPLE SYRUP", usagePerGuest: 0, location: "Server Line", type: "beverage", casePack: "Case - 4/Bottle (1 L)", price: 32.31 },
+  { name: "COND CARAMEL APPLE SYRUP - 3771", vendorItemNumber: 212241, preferredName: "CARAMEL APPLE SYRUP", usagePerGuest: 0, location: "Server Line", type: "Beverage", casePack: "Case - 4/Bottle (1 L)", price: 32.31 },
 ]
