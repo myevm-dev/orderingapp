@@ -13,7 +13,9 @@ interface GuestCountStepProps {
 export function GuestCountStep({ guestCount, onGuestCountChange, onNext }: GuestCountStepProps) {
   const count = Number.parseInt(guestCount, 10)
   const valid = Number.isFinite(count) && count > 0
-  const itemCount = activeItems().length
+  const items = activeItems()
+  const itemCount = items.length
+  const usageItemCount = items.filter((item) => item.usagePerGuest > 0).length
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter" && !e.nativeEvent.isComposing && e.keyCode !== 229 && valid) {
@@ -31,8 +33,8 @@ export function GuestCountStep({ guestCount, onGuestCountChange, onNext }: Guest
           How many guests are forecasted?
         </h2>
         <p className="mt-2 max-w-md text-sm leading-relaxed text-muted-foreground text-pretty">
-          Enter your forecasted guest count. We&apos;ll multiply it by each item&apos;s usage per guest
-          to calculate a build-to-par number for all {itemCount} tracked items.
+          Enter your forecasted guest count. We&apos;ll use the saved usage-per-guest model for {usageItemCount}
+          of {itemCount} guide items. Items without a usage model can still be added manually on the order screen.
         </p>
       </div>
 

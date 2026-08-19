@@ -1,19 +1,23 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { MapPin, Package, ChevronDown } from "lucide-react"
+import { MapPin, Package, ChevronDown, Minus, Plus } from "lucide-react"
 import { groupByLocation, type OnHandMap } from "@/lib/order-utils"
 
 interface CountingStepProps {
   guestCount: number
   onHand: OnHandMap
-  onOnHandChange: (vendorItemNumber: number, value: number) => void
+  orderAdjustments: Record<number, number>
+  onOnHandChange: (id: number, value: number) => void
+  onAdjustOrder: (id: number, amount: number) => void
 }
 
 export function CountingStep({
   guestCount,
   onHand,
+  orderAdjustments,
   onOnHandChange,
+  onAdjustOrder,
 }: CountingStepProps) {
   const groups = useMemo(() => groupByLocation(guestCount, onHand), [guestCount, onHand])
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
@@ -29,7 +33,8 @@ export function CountingStep({
       <div className="rounded-xl border border-border bg-accent/60 p-4">
         <p className="text-sm leading-relaxed text-accent-foreground text-pretty">
           Walk each location and enter on-hand cases to the nearest hundredth. The order rounds the
-          remaining <span className="font-semibold">par minus on hand</span> up to a whole case.
+          remaining <span className="font-semibold">par minus on hand</span> up to a whole case. Use
+          <span className="font-semibold"> + / - </span> to manually adjust the amount to order.
         </p>
       </div>
 
@@ -71,11 +76,11 @@ export function CountingStep({
                         className="flex flex-wrap items-center gap-3 px-4 py-3 sm:flex-nowrap"
                       >
                         <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium text-card-foreground">
+                          <p className="whitespace-normal break-words font-medium leading-snug text-card-foreground">
                             {item.preferredName || item.name}
                           </p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            #{item.vendorItemNumber} · Par {item.par.toFixed(2)}
+                          <p className="mt-0.5 whitespace-normal break-words text-xs text-muted-foreground">
+                            #{item.vendorItemNumber} · {item.usagePerGuest > 0 ? `Par ${item.par.toFixed(2)}` : "Manual order item"}
                           </p>
                         </div>
 
@@ -104,19 +109,45 @@ export function CountingStep({
                             />
                           </div>
 
-                          <div className="flex w-16 flex-col items-center">
+                          <div className="flex flex-col items-center">
                             <span className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                               Order
                             </span>
-                            <span
-                              className={`w-full rounded-lg py-1.5 text-center text-base font-bold tabular-nums ${
-                                item.toOrder > 0
-                                  ? "bg-primary/15 text-primary"
-                                  : "bg-muted text-muted-foreground"
-                              }`}
-                            >
-                              {item.toOrder}
-                            </span>
+                            {(() => {
+                              const adjustment = orderAdjustments[item.id] ?? 0
+                              const finalToOrder = Math.max(0, item.toOrder + adjustment)
+
+                              return (
+                                <div className="flex items-center overflow-hidden rounded-lg border border-border bg-background">
+                                  <button
+                                    type="button"
+                                    onClick={() => onAdjustOrder(item.id, -1)}
+                                    disabled={finalToOrder <= 0}
+                                    className="flex h-9 w-8 items-center justify-center text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
+                                    aria-label={`Decrease ${item.name} order`}
+                                  >
+                                    <Minus className="h-3.5 w-3.5" aria-hidden="true" />
+                                  </button>
+                                  <span
+                                    className={`flex h-9 min-w-9 items-center justify-center px-1 text-center text-base font-bold tabular-nums ${
+                                      finalToOrder > 0
+                                        ? "bg-primary/15 text-primary"
+                                        : "bg-muted text-muted-foreground"
+                                    }`}
+                                  >
+                                    {finalToOrder}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => onAdjustOrder(item.id, 1)}
+                                    className="flex h-9 w-8 items-center justify-center text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                                    aria-label={`Increase ${item.name} order`}
+                                  >
+                                    <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                                  </button>
+                                </div>
+                              )
+                            })()}
                           </div>
                         </div>
                       </li>

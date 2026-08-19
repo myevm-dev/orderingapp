@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { GuestCountStep } from "@/components/guest-count-step"
 import { CountingStep } from "@/components/counting-step"
-import { SummaryStep } from "@/components/summary-step"
+import { SummaryStep, type OrderAdjustmentMap } from "@/components/summary-step"
 import type { OnHandMap } from "@/lib/order-utils"
 
 type Step = 0 | 1 | 2
@@ -17,6 +17,7 @@ export function OrderingApp() {
   const [step, setStep] = useState<Step>(0)
   const [guestCount, setGuestCount] = useState("")
   const [onHand, setOnHand] = useState<OnHandMap>({})
+  const [orderAdjustments, setOrderAdjustments] = useState<OrderAdjustmentMap>({})
 
   const guests = Number.parseInt(guestCount, 10) || 0
 
@@ -24,10 +25,32 @@ export function OrderingApp() {
     setOnHand((prev) => ({ ...prev, [id]: value }))
   }
 
+  function handleAdjustOrder(id: number, amount: number) {
+    setOrderAdjustments((prev) => {
+      const nextValue = (prev[id] ?? 0) + amount
+      if (nextValue === 0) {
+        const next = { ...prev }
+        delete next[id]
+        return next
+      }
+      return { ...prev, [id]: nextValue }
+    })
+  }
+
+  function handleResetOrderAdjustment(id: number) {
+    setOrderAdjustments((prev) => {
+      if (!(id in prev)) return prev
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
+  }
+
   function reset() {
     setStep(0)
     setGuestCount("")
     setOnHand({})
+    setOrderAdjustments({})
   }
 
   return (
@@ -89,11 +112,21 @@ export function OrderingApp() {
         <CountingStep
           guestCount={guests}
           onHand={onHand}
+          orderAdjustments={orderAdjustments}
           onOnHandChange={handleOnHandChange}
+          onAdjustOrder={handleAdjustOrder}
         />
       )}
 
-      {step === 2 && <SummaryStep guestCount={guests} onHand={onHand} />}
+      {step === 2 && (
+        <SummaryStep
+          guestCount={guests}
+          onHand={onHand}
+          orderAdjustments={orderAdjustments}
+          onAdjustOrder={handleAdjustOrder}
+          onResetOrderAdjustment={handleResetOrderAdjustment}
+        />
+      )}
 
       {step > 0 && (
         <footer className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
