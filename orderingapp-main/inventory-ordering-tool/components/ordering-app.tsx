@@ -145,12 +145,18 @@ export function OrderingApp() {
   }
 
   function reset() {
-    if (!window.confirm("Start over? This clears the guest count, counts and order.")) {
+    if (
+      !window.confirm(
+        "Clear this order? This deletes the saved guest count, counts and order changes. Your walk order stays.",
+      )
+    ) {
       return
     }
 
     clearDraft()
     skipNextSave.current = true
+    setEditingWalkOrder(false)
+    setSaveFailed(false)
     setStep(0)
     setGuestCount("")
     setOnHand({})
@@ -206,17 +212,28 @@ export function OrderingApp() {
           })}
         </ol>
 
-        {saveFailed ? (
-          <p role="alert" className="mt-3 text-xs font-medium text-destructive">
-            Couldn&apos;t save on this device. Keep this page open until the order
-            is done.
-          </p>
-        ) : (
-          savedAt && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              Saved on this device · {formatSavedAt(savedAt)}
-            </p>
-          )
+        {(saveFailed || savedAt) && (
+          <div className="mt-3 flex items-center justify-between gap-3">
+            {saveFailed ? (
+              <p role="alert" className="text-xs font-medium text-destructive">
+                Couldn&apos;t save on this device. Keep this page open until the
+                order is done.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                Saved on this device · {formatSavedAt(savedAt)}
+              </p>
+            )}
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={reset}
+              className="h-11 shrink-0"
+            >
+              Clear order
+            </Button>
+          </div>
         )}
       </nav>
 
