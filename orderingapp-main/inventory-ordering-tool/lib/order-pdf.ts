@@ -314,10 +314,33 @@ export function createOrderPdf(input: OrderPdfInput, date = new Date()) {
   return doc
 }
 
-export function downloadOrderPdf(input: OrderPdfInput, date = new Date()) {
+/**
+ * Phones get the share sheet, which is where Print lives and which also works
+ * from a home-screen app. Everything else gets a normal file download.
+ */
+export async function downloadOrderPdf(
+  input: OrderPdfInput,
+  date = new Date(),
+) {
   const fileDate = date.toLocaleDateString("en-CA")
+  const fileName = `order-${fileDate}-${input.guestCount}-guests.pdf`
+  const doc = createOrderPdf(input, date)
+  const file = new File([doc.output("blob")], fileName, {
+    type: "application/pdf",
+  })
 
-  createOrderPdf(input, date).save(
-    `order-${fileDate}-${input.guestCount}-guests.pdf`,
-  )
+  if (
+    window.matchMedia("(pointer: coarse)").matches &&
+    navigator.canShare?.({ files: [file] })
+  ) {
+    try {
+      await navigator.share({ files: [file] })
+      return
+    } catch (error) {
+      // Closing the share sheet isn't a failure. Anything else falls back to saving.
+      if (error instanceof DOMException && error.name === "AbortError") return
+    }
+  }
+
+  doc.save(fileName)
 }

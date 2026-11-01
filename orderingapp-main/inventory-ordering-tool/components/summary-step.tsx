@@ -17,8 +17,10 @@ import {
   computeItem,
   formatCurrency,
   formatMcLaneNumber,
+  groupByLocation,
   type OnHandMap,
 } from "@/lib/order-utils"
+import type { WalkOrder } from "@/lib/walk-order"
 
 export type OrderAdjustmentMap = Record<number, number>
 
@@ -26,6 +28,7 @@ interface SummaryStepProps {
   guestCount: number
   onHand: OnHandMap
   orderAdjustments: OrderAdjustmentMap
+  walkOrder: WalkOrder
   onAdjustOrder: (id: number, amount: number) => void
   onResetOrderAdjustment: (id: number) => void
 }
@@ -34,6 +37,7 @@ export function SummaryStep({
   guestCount,
   onHand,
   orderAdjustments,
+  walkOrder,
   onAdjustOrder,
   onResetOrderAdjustment,
 }: SummaryStepProps) {
@@ -43,9 +47,14 @@ export function SummaryStep({
     "idle" | "working" | "failed"
   >("idle")
 
-  const allItems = useMemo(
-    () =>
-      activeItems()
+  const allItems = useMemo(() => {
+    const walkPosition = new Map(
+      groupByLocation(0, {}, walkOrder)
+        .flatMap((group) => group.items)
+        .map((item, index) => [item.id, index]),
+    )
+
+    return activeItems()
         .map((item) => {
           const computed = computeItem(
             item,
@@ -78,22 +87,15 @@ export function SummaryStep({
         })
         .sort(
           (a, b) =>
-            a.location.localeCompare(
-              b.location,
-            ) ||
-            a.type.localeCompare(
-              b.type,
-            ) ||
-            a.name.localeCompare(
-              b.name,
-            ),
-        ),
-    [
-      guestCount,
-      onHand,
-      orderAdjustments,
-    ],
-  )
+            (walkPosition.get(a.id) ?? 0) -
+            (walkPosition.get(b.id) ?? 0),
+        )
+  }, [
+    guestCount,
+    onHand,
+    orderAdjustments,
+    walkOrder,
+  ])
 
   const orderItems = allItems.filter(
     (item) =>
@@ -209,7 +211,7 @@ export function SummaryStep({
         "@/lib/order-pdf"
       )
 
-      downloadOrderPdf({
+      await downloadOrderPdf({
         guestCount,
         lines: orderItems,
         total: estimatedOrderTotal,
