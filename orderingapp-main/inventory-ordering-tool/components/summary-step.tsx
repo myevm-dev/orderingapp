@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import {
   CheckCircle2,
   ClipboardList,
+  Download,
   Minus,
   Plus,
   RotateCcw,
@@ -14,6 +15,8 @@ import { Button } from "@/components/ui/button"
 import {
   activeItems,
   computeItem,
+  formatCurrency,
+  formatMcLaneNumber,
   type OnHandMap,
 } from "@/lib/order-utils"
 
@@ -27,17 +30,6 @@ interface SummaryStepProps {
   onResetOrderAdjustment: (id: number) => void
 }
 
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(value)
-}
-
-function formatMcLaneNumber(value: number | string) {
-  return String(value).padStart(6, "0")
-}
-
 export function SummaryStep({
   guestCount,
   onHand,
@@ -47,6 +39,9 @@ export function SummaryStep({
 }: SummaryStepProps) {
   const [showAllItems, setShowAllItems] = useState(false)
   const [search, setSearch] = useState("")
+  const [pdfStatus, setPdfStatus] = useState<
+    "idle" | "working" | "failed"
+  >("idle")
 
   const allItems = useMemo(
     () =>
@@ -205,6 +200,27 @@ export function SummaryStep({
     showAllItems,
   ])
 
+  async function handleDownloadPdf() {
+    setPdfStatus("working")
+
+    try {
+      // Loaded on demand so the PDF library isn't part of the initial page.
+      const { downloadOrderPdf } = await import(
+        "@/lib/order-pdf"
+      )
+
+      downloadOrderPdf({
+        guestCount,
+        lines: orderItems,
+        total: estimatedOrderTotal,
+      })
+      setPdfStatus("idle")
+    } catch (error) {
+      console.error(error)
+      setPdfStatus("failed")
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Summary header */}
@@ -286,6 +302,32 @@ export function SummaryStep({
                 </span>
               </div>
             </div>
+
+            <Button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={
+                orderItems.length === 0 ||
+                pdfStatus === "working"
+              }
+              className="mt-3 w-full"
+            >
+              <Download
+                className="mr-1 h-4 w-4"
+                aria-hidden="true"
+              />
+              Download order PDF
+            </Button>
+
+            {pdfStatus === "failed" && (
+              <p
+                role="alert"
+                className="mt-2 text-xs text-destructive"
+              >
+                Couldn&apos;t create the PDF. Check
+                your connection and try again.
+              </p>
+            )}
           </div>
         </div>
       </div>

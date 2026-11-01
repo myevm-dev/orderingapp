@@ -22,6 +22,17 @@ export function roundToHundredth(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100
 }
 
+export function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(value)
+}
+
+export function formatMcLaneNumber(value: number | string) {
+  return String(value).padStart(6, "0")
+}
+
 export function computePar(usagePerGuest: number, guestCount: number): number {
   return roundToHundredth(usagePerGuest * guestCount)
 }
