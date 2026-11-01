@@ -2,22 +2,33 @@
 
 import { useMemo, useState } from "react"
 import {
+  CheckCircle2,
   MapPin,
   Package,
   ChevronDown,
   Minus,
   Plus,
+  Route,
   Search,
 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import {
   groupByLocation,
+  groupByTypeRuns,
+  itemType,
   type OnHandMap,
 } from "@/lib/order-utils"
+import type { WalkOrder } from "@/lib/walk-order"
 
 interface CountingStepProps {
   guestCount: number
   onHand: OnHandMap
   orderAdjustments: Record<number, number>
+  walkOrder: WalkOrder
+  openLocations: Record<string, boolean>
+  onOpenLocationsChange: (
+    open: Record<string, boolean>,
+  ) => void
   onOnHandChange: (
     id: number,
     value: number,
@@ -26,71 +37,59 @@ interface CountingStepProps {
     id: number,
     amount: number,
   ) => void
+  onEditWalkOrder: () => void
 }
-
-const LOCATION_ORDER = [
-  "Server Line",
-  "Dessert",
-  "Soda",
-  "Dry Storage",
-  "Inside Cooler",
-  "Walkin",
-  "Freezer",
-  "Inside Freezer",
-  "Chemicals",
-  "Smallwares",
-]
 
 export function CountingStep({
   guestCount,
   onHand,
   orderAdjustments,
+  walkOrder,
+  openLocations,
+  onOpenLocationsChange,
   onOnHandChange,
   onAdjustOrder,
+  onEditWalkOrder,
 }: CountingStepProps) {
   const [search, setSearch] =
     useState("")
 
-  const groups = useMemo(() => {
-    const grouped =
+  const groups = useMemo(
+    () =>
       groupByLocation(
         guestCount,
         onHand,
-      )
+        walkOrder,
+      ),
+    [guestCount, onHand, walkOrder],
+  )
 
-    return [...grouped].sort(
-      (a, b) => {
-        const aIndex =
-          LOCATION_ORDER.indexOf(
-            a.location,
-          )
-        const bIndex =
-          LOCATION_ORDER.indexOf(
-            b.location,
-          )
-
-        if (
-          aIndex === -1 &&
-          bIndex === -1
-        ) {
-          return a.location.localeCompare(
-            b.location,
-          )
+  // Until something is toggled, the first stop on the walk starts open.
+  const open =
+    Object.keys(openLocations).length >
+    0
+      ? openLocations
+      : {
+          [groups[0]?.location ?? ""]:
+            true,
         }
 
-        if (aIndex === -1) return 1
-        if (bIndex === -1) return -1
-
-        return aIndex - bIndex
-      },
-    )
-  }, [guestCount, onHand])
-
-  const [open, setOpen] = useState<
-    Record<string, boolean>
-  >(() => ({
-    "Server Line": true,
-  }))
+  const progress = useMemo(
+    () =>
+      new Map(
+        groups.map((group) => [
+          group.location,
+          {
+            counted: group.items.filter(
+              (item) =>
+                item.id in onHand,
+            ).length,
+            total: group.items.length,
+          },
+        ]),
+      ),
+    [groups, onHand],
+  )
 
   const filteredGroups =
     useMemo(() => {
@@ -103,62 +102,37 @@ export function CountingStep({
       }
 
       return groups
-        .map((group) => {
-          const filteredTypes =
-            group.types
-              .map(
-                (typeGroup) => {
-                  const items =
-                    typeGroup.items.filter(
-                      (item) => {
-                        return [
-                          item.name,
-                          item.preferredName,
-                          String(
-                            item.vendorItemNumber,
-                          ),
-                          group.location,
-                          typeGroup.type,
-                        ]
-                          .join(" ")
-                          .toLowerCase()
-                          .includes(
-                            query,
-                          )
-                      },
-                    )
-
-                  return {
-                    ...typeGroup,
-                    items,
-                  }
-                },
-              )
-              .filter(
-                (typeGroup) =>
-                  typeGroup.items
-                    .length > 0,
-              )
-
-          return {
-            ...group,
-            types: filteredTypes,
-          }
-        })
+        .map((group) => ({
+          ...group,
+          items: group.items.filter(
+            (item) =>
+              [
+                item.name,
+                item.preferredName,
+                String(
+                  item.vendorItemNumber,
+                ),
+                group.location,
+                itemType(item),
+              ]
+                .join(" ")
+                .toLowerCase()
+                .includes(query),
+          ),
+        }))
         .filter(
           (group) =>
-            group.types.length > 0,
+            group.items.length > 0,
         )
     }, [groups, search])
 
   function toggle(
     location: string,
   ) {
-    setOpen((prev) => ({
-      ...prev,
-      [location]:
-        !prev[location],
-    }))
+    onOpenLocationsChange({
+      ...open,
+      [location]: !open[location],
+    })
   }
 
   const isSearching =
@@ -208,6 +182,19 @@ export function CountingStep({
             className="w-full rounded-lg border border-input bg-background py-2.5 pl-10 pr-4 text-base text-foreground outline-none ring-ring/40 transition placeholder:text-muted-foreground focus:border-ring focus:ring-2"
           />
         </label>
+
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onEditWalkOrder}
+          className="mt-3 w-full"
+        >
+          <Route
+            className="mr-1 h-4 w-4"
+            aria-hidden="true"
+          />
+          Edit walk order
+        </Button>
       </div>
 
       {filteredGroups.length ===
@@ -229,6 +216,15 @@ export function CountingStep({
               isSearching ||
               open[group.location] ||
               false
+
+            const counted =
+              progress.get(
+                group.location,
+              )?.counted ?? 0
+            const total =
+              progress.get(
+                group.location,
+              )?.total ?? 0
 
             return (
               <section
@@ -260,25 +256,49 @@ export function CountingStep({
                     }
                   </span>
 
-                  <ChevronDown
-                    className={`h-5 w-5 shrink-0 text-muted-foreground transition-transform ${
-                      isOpen
-                        ? "rotate-180"
-                        : ""
-                    }`}
-                    aria-hidden="true"
-                  />
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span
+                      className={`flex items-center gap-1 text-xs font-medium tabular-nums ${
+                        counted === total
+                          ? "text-primary"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {counted ===
+                        total && (
+                        <CheckCircle2
+                          className="h-4 w-4"
+                          aria-hidden="true"
+                        />
+                      )}
+                      {counted} of{" "}
+                      {total}
+                    </span>
+
+                    <ChevronDown
+                      className={`h-5 w-5 text-muted-foreground transition-transform ${
+                        isOpen
+                          ? "rotate-180"
+                          : ""
+                      }`}
+                      aria-hidden="true"
+                    />
+                  </span>
                 </button>
 
                 {isOpen && (
                   <div className="border-t border-border">
-                    {group.types.map(
+                    {groupByTypeRuns(
+                      group.items,
+                    ).map(
                       (
                         typeGroup,
                       ) => (
                         <div
                           key={
-                            typeGroup.type
+                            typeGroup
+                              .items[0]
+                              .id
                           }
                           className="border-b border-border last:border-b-0"
                         >

@@ -1,4 +1,9 @@
 import { inventoryItems, type InventoryItem } from "@/lib/inventory-items"
+import {
+  sortBySavedOrder,
+  sortLocations,
+  type WalkOrder,
+} from "@/lib/walk-order"
 
 /** On-hand counts keyed by the stable item id (array index), since vendorItemNumber is not unique. */
 export type OnHandMap = Record<number, number>
@@ -20,6 +25,17 @@ const NO_TYPE = "Other"
 /** Keep forecasted par quantities precise to the nearest hundredth of a case. */
 export function roundToHundredth(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
+export function formatCurrency(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(value)
+}
+
+export function formatMcLaneNumber(value: number | string) {
+  return String(value).padStart(6, "0")
 }
 
 export function computePar(usagePerGuest: number, guestCount: number): number {
@@ -53,29 +69,52 @@ export interface TypeGroup {
 
 export interface LocationGroup {
   location: string
-  types: TypeGroup[]
+  items: ComputedItem[]
 }
 
-/** Group active items by location, then by sub-category type. */
-export function groupByLocation(guestCount: number, onHand: OnHandMap): LocationGroup[] {
-  const locMap = new Map<string, Map<string, ComputedItem[]>>()
+export function itemType(item: Pick<InventoryItem, "type">): string {
+  return item.type.trim() || NO_TYPE
+}
+
+/** Group active items by location in walk order. Items default to sorting by type. */
+export function groupByLocation(
+  guestCount: number,
+  onHand: OnHandMap,
+  walkOrder: WalkOrder,
+): LocationGroup[] {
+  const byLocation = new Map<string, ComputedItem[]>()
 
   for (const item of activeItems()) {
-    const computed = computeItem(item, guestCount, onHand)
     const location = item.location.trim() || NO_LOCATION
-    const type = item.type.trim() || NO_TYPE
-    if (!locMap.has(location)) locMap.set(location, new Map())
-    const typeMap = locMap.get(location)!
-    if (!typeMap.has(type)) typeMap.set(type, [])
-    typeMap.get(type)!.push(computed)
+    byLocation.set(location, [
+      ...(byLocation.get(location) ?? []),
+      computeItem(item, guestCount, onHand),
+    ])
   }
 
-  return Array.from(locMap.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([location, typeMap]) => ({
-      location,
-      types: Array.from(typeMap.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([type, items]) => ({ type, items })),
-    }))
+  return sortLocations(Array.from(byLocation.keys()), walkOrder).map((location) => ({
+    location,
+    items: sortBySavedOrder(
+      [...byLocation.get(location)!].sort((a, b) =>
+        itemType(a).localeCompare(itemType(b)),
+      ),
+      walkOrder.items[location],
+      (item) => item.name,
+    ),
+  }))
+}
+
+/** Split a location's items into runs of the same type, keeping their walk order. */
+export function groupByTypeRuns(items: ComputedItem[]): TypeGroup[] {
+  const runs: TypeGroup[] = []
+
+  for (const item of items) {
+    const type = itemType(item)
+    const current = runs[runs.length - 1]
+
+    if (current?.type === type) current.items.push(item)
+    else runs.push({ type, items: [item] })
+  }
+
+  return runs
 }

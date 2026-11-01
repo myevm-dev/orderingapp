@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import {
   CheckCircle2,
   ClipboardList,
+  Download,
   Minus,
   Plus,
   RotateCcw,
@@ -14,8 +15,12 @@ import { Button } from "@/components/ui/button"
 import {
   activeItems,
   computeItem,
+  formatCurrency,
+  formatMcLaneNumber,
+  groupByLocation,
   type OnHandMap,
 } from "@/lib/order-utils"
+import type { WalkOrder } from "@/lib/walk-order"
 
 export type OrderAdjustmentMap = Record<number, number>
 
@@ -23,34 +28,33 @@ interface SummaryStepProps {
   guestCount: number
   onHand: OnHandMap
   orderAdjustments: OrderAdjustmentMap
+  walkOrder: WalkOrder
   onAdjustOrder: (id: number, amount: number) => void
   onResetOrderAdjustment: (id: number) => void
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(value)
-}
-
-function formatMcLaneNumber(value: number | string) {
-  return String(value).padStart(6, "0")
 }
 
 export function SummaryStep({
   guestCount,
   onHand,
   orderAdjustments,
+  walkOrder,
   onAdjustOrder,
   onResetOrderAdjustment,
 }: SummaryStepProps) {
   const [showAllItems, setShowAllItems] = useState(false)
   const [search, setSearch] = useState("")
+  const [pdfStatus, setPdfStatus] = useState<
+    "idle" | "working" | "failed"
+  >("idle")
 
-  const allItems = useMemo(
-    () =>
-      activeItems()
+  const allItems = useMemo(() => {
+    const walkPosition = new Map(
+      groupByLocation(0, {}, walkOrder)
+        .flatMap((group) => group.items)
+        .map((item, index) => [item.id, index]),
+    )
+
+    return activeItems()
         .map((item) => {
           const computed = computeItem(
             item,
@@ -83,22 +87,15 @@ export function SummaryStep({
         })
         .sort(
           (a, b) =>
-            a.location.localeCompare(
-              b.location,
-            ) ||
-            a.type.localeCompare(
-              b.type,
-            ) ||
-            a.name.localeCompare(
-              b.name,
-            ),
-        ),
-    [
-      guestCount,
-      onHand,
-      orderAdjustments,
-    ],
-  )
+            (walkPosition.get(a.id) ?? 0) -
+            (walkPosition.get(b.id) ?? 0),
+        )
+  }, [
+    guestCount,
+    onHand,
+    orderAdjustments,
+    walkOrder,
+  ])
 
   const orderItems = allItems.filter(
     (item) =>
@@ -205,6 +202,27 @@ export function SummaryStep({
     showAllItems,
   ])
 
+  async function handleDownloadPdf() {
+    setPdfStatus("working")
+
+    try {
+      // Loaded on demand so the PDF library isn't part of the initial page.
+      const { downloadOrderPdf } = await import(
+        "@/lib/order-pdf"
+      )
+
+      await downloadOrderPdf({
+        guestCount,
+        lines: orderItems,
+        total: estimatedOrderTotal,
+      })
+      setPdfStatus("idle")
+    } catch (error) {
+      console.error(error)
+      setPdfStatus("failed")
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* Summary header */}
@@ -286,6 +304,32 @@ export function SummaryStep({
                 </span>
               </div>
             </div>
+
+            <Button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={
+                orderItems.length === 0 ||
+                pdfStatus === "working"
+              }
+              className="mt-3 w-full"
+            >
+              <Download
+                className="mr-1 h-4 w-4"
+                aria-hidden="true"
+              />
+              Download order PDF
+            </Button>
+
+            {pdfStatus === "failed" && (
+              <p
+                role="alert"
+                className="mt-2 text-xs text-destructive"
+              >
+                Couldn&apos;t create the PDF. Check
+                your connection and try again.
+              </p>
+            )}
           </div>
         </div>
       </div>

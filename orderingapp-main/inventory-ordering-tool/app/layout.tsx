@@ -1,11 +1,17 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import { OfflineSupport } from '@/components/offline-support'
 import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Build-to-Par Ordering',
   description: 'Forecast guests, count on-hand inventory by location, and generate an order list.',
   generator: 'v0.app',
+  appleWebApp: {
+    capable: true,
+    title: 'Ordering',
+    statusBarStyle: 'default',
+  },
   icons: {
     icon: [
       {
@@ -49,6 +55,7 @@ export default function RootLayout({
       </head>
       <body className="antialiased">
         {children}
+        <OfflineSupport />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
