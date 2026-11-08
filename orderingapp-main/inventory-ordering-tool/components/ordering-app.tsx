@@ -109,8 +109,13 @@ export function OrderingApp() {
     window.scrollTo(0, 0)
   }
 
-  function handleOnHandChange(id: number, value: number) {
-    setOnHand((prev) => ({ ...prev, [id]: value }))
+  function handleOnHandChange(id: number, value: number | null) {
+    setOnHand((prev) => {
+      const next = { ...prev }
+      if (value === null) delete next[id]
+      else next[id] = value
+      return next
+    })
   }
 
   function handleAdjustOrder(id: number, amount: number) {
@@ -259,6 +264,8 @@ export function OrderingApp() {
           onOpenLocationsChange={setOpenLocations}
           onOnHandChange={handleOnHandChange}
           onAdjustOrder={handleAdjustOrder}
+          onResetOrderAdjustment={handleResetOrderAdjustment}
+          onResetAllAdjustments={() => setOrderAdjustments({})}
           onEditWalkOrder={() => setEditing(true)}
         />
       )}
