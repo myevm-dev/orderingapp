@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Minus,
   Plus,
+  RotateCcw,
   Route,
   Search,
 } from "lucide-react"
@@ -31,12 +32,16 @@ interface CountingStepProps {
   ) => void
   onOnHandChange: (
     id: number,
-    value: number,
+    value: number | null,
   ) => void
   onAdjustOrder: (
     id: number,
     amount: number,
   ) => void
+  onResetOrderAdjustment: (
+    id: number,
+  ) => void
+  onResetAllAdjustments: () => void
   onEditWalkOrder: () => void
 }
 
@@ -49,10 +54,16 @@ export function CountingStep({
   onOpenLocationsChange,
   onOnHandChange,
   onAdjustOrder,
+  onResetOrderAdjustment,
+  onResetAllAdjustments,
   onEditWalkOrder,
 }: CountingStepProps) {
   const [search, setSearch] =
     useState("")
+
+  const manualChanges = Object.values(
+    orderAdjustments,
+  ).filter((value) => value !== 0).length
 
   const groups = useMemo(
     () =>
@@ -195,6 +206,39 @@ export function CountingStep({
           />
           Edit walk order
         </Button>
+
+        {manualChanges > 0 && (
+          <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+            <p className="text-sm text-card-foreground">
+              {manualChanges} item
+              {manualChanges === 1
+                ? " has a"
+                : "s have"}{" "}
+              manual +/- change
+              {manualChanges === 1
+                ? ""
+                : "s"}
+              .
+            </p>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    "Reset every item to its suggested order? Your on-hand counts stay.",
+                  )
+                ) {
+                  onResetAllAdjustments()
+                }
+              }}
+              className="h-11 shrink-0"
+            >
+              Reset all
+            </Button>
+          </div>
+        )}
       </div>
 
       {filteredGroups.length ===
@@ -344,7 +388,44 @@ export function CountingStep({
                                             2,
                                           )}`
                                         : "Manual order item"}
+                                      {item.usagePerGuest >
+                                        0 &&
+                                        ` · Suggested ${item.toOrder}`}
                                     </p>
+
+                                    {(orderAdjustments[
+                                      item.id
+                                    ] ?? 0) !== 0 && (
+                                      <p className="mt-1 flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400">
+                                        {orderAdjustments[
+                                          item.id
+                                        ] > 0
+                                          ? "+"
+                                          : ""}
+                                        {
+                                          orderAdjustments[
+                                            item.id
+                                          ]
+                                        }{" "}
+                                        manual change
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            onResetOrderAdjustment(
+                                              item.id,
+                                            )
+                                          }
+                                          className="inline-flex h-8 w-8 items-center justify-center rounded-md transition hover:bg-muted"
+                                          aria-label={`Reset ${item.name} to suggested order`}
+                                          title="Reset to suggested order"
+                                        >
+                                          <RotateCcw
+                                            className="h-3.5 w-3.5"
+                                            aria-hidden="true"
+                                          />
+                                        </button>
+                                      </p>
+                                    )}
                                   </div>
 
                                   <div className="flex items-center gap-3">
@@ -375,6 +456,18 @@ export function CountingStep({
                                         onChange={(
                                           e,
                                         ) => {
+                                          // An empty box means "not counted yet", so it can be cleared.
+                                          if (
+                                            e.target.value.trim() ===
+                                            ""
+                                          ) {
+                                            onOnHandChange(
+                                              item.id,
+                                              null,
+                                            )
+                                            return
+                                          }
+
                                           const v =
                                             Number.parseFloat(
                                               e
